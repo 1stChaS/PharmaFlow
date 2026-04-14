@@ -19,12 +19,12 @@ export const prescriptionController = {
   }),
 
   reject: asyncHandler(async (req, res) => {
-    const data = await prescriptionService.reject(Number(req.params.id), req.body.reason, req.user);
+    const data = await prescriptionService.reject(Number(req.params.id), req.body, req.user);
     return sendSuccess(res, data, 'Prescription rejected');
   }),
 
   dispatch: asyncHandler(async (req, res) => {
-    const data = await prescriptionService.dispatch(Number(req.params.id), req.body || {}, req.user);
+    const data = await prescriptionService.dispatch(Number(req.params.id), req.user);
     return sendSuccess(res, data, 'Prescription dispatched');
   }),
 };

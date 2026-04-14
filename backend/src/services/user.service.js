@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
+import { pool } from '../config/database.js';
 import { ApiError } from '../utils/api-error.js';
-import { userRepository } from '../repositories/user.repository.js';
 
 const mapUser = (u) => ({
   id: u.id,
@@ -14,24 +14,52 @@ const mapUser = (u) => ({
   createdAt: u.created_at,
 });
 
+async function writeAuditLog({ userId, action, entityType, entityId, oldValues, newValues, ipAddress }) {
+  await pool.query(
+    'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_values, new_values, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [userId, action, entityType, entityId || null, oldValues || null, newValues || null, ipAddress || null],
+  );
+}
+
 export const userService = {
   async list(filters) {
-    const rows = await userRepository.list(filters);
+    let sql = 'SELECT id, username, email, full_name, role, department, avatar_url, is_active, created_at FROM users WHERE 1=1';
+    const params = [];
+
+    if (filters.role) {
+      sql += ' AND role = ?';
+      params.push(filters.role);
+    }
+    if (filters.status === 'active') sql += ' AND is_active = TRUE';
+    if (filters.status === 'inactive') sql += ' AND is_active = FALSE';
+
+    sql += ' ORDER BY full_name';
+    const [rows] = await pool.query(sql, params);
     return rows.map(mapUser);
   },
 
   async create(payload, actor) {
+    const requiredFields = ['username', 'email', 'password', 'fullName', 'role'];
+    for (const field of requiredFields) {
+      if (!payload[field]) throw new ApiError(400, `${field} is required`);
+    }
+
     const passwordHash = await bcrypt.hash(payload.password, 10);
     try {
-      const id = await userRepository.create({ ...payload, passwordHash });
-      await userRepository.audit({
+      const [result] = await pool.query(
+        'INSERT INTO users (username, email, password_hash, full_name, role, department) VALUES (?, ?, ?, ?, ?, ?)',
+        [payload.username, payload.email, passwordHash, payload.fullName, payload.role, payload.department || null],
+      );
+
+      await writeAuditLog({
         userId: actor.id,
         action: 'CREATE',
         entityType: 'user',
-        entityId: id,
+        entityId: result.insertId,
         newValues: JSON.stringify({ ...payload, password: '***' }),
       });
-      return id;
+
+      return result.insertId;
     } catch (err) {
       if (err.code === 'ER_DUP_ENTRY') throw new ApiError(409, 'Username or email already exists');
       throw err;
@@ -39,11 +67,25 @@ export const userService = {
   },
 
   async update(id, updates, actor) {
-    const existing = await userRepository.findSafeById(id);
+    const [existingRows] = await pool.query(
+      'SELECT id, username, email, full_name, role, department, avatar_url, is_active, created_at FROM users WHERE id = ? LIMIT 1',
+      [id],
+    );
+    const existing = existingRows[0] || null;
     if (!existing) throw new ApiError(404, 'User not found');
 
-    await userRepository.update(id, updates);
-    await userRepository.audit({
+    await pool.query(
+      `UPDATE users SET
+        full_name = COALESCE(?, full_name),
+        email = COALESCE(?, email),
+        role = COALESCE(?, role),
+        department = COALESCE(?, department),
+        is_active = COALESCE(?, is_active)
+      WHERE id = ?`,
+      [updates.fullName, updates.email, updates.role, updates.department, updates.isActive, id],
+    );
+
+    await writeAuditLog({
       userId: actor.id,
       action: 'UPDATE',
       entityType: 'user',

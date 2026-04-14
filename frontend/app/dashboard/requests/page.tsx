@@ -27,9 +27,23 @@ import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge, PriorityBadge } from '@/components/pharmacy/status-badge'
 import { StatCard } from '@/components/pharmacy/stat-card'
 import { EmptyState } from '@/components/pharmacy/empty-state'
-import { mockRequests } from '@/lib/mock-data'
 import { DrugRequest } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useEffect } from 'react'
+import api from '@/lib/api'
+
+useEffect(() => {
+  fetchRequests()
+}, [])
+
+const fetchRequests = async () => {
+  try {
+    const res = await api.get('/requests')
+    setRequests(res.data)
+  } catch (err) {
+    console.error(err)
+  }
+}
 
 type FilterTab = 'all' | 'pending' | 'approved' | 'dispatched' | 'delivered' | 'rejected'
 
