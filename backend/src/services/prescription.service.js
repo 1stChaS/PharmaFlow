@@ -3,13 +3,16 @@ import { prescriptionRepository } from '../repositories/prescription.repository.
 import { patientRepository } from '../repositories/patient.repository.js';
 import { ApiError } from '../utils/api-error.js';
 
+const APPROVABLE_STATUSES = new Set(['pending']);
+const REJECTABLE_STATUSES = new Set(['pending']);
+const DISPATCHABLE_STATUSES = new Set(['approved', 'ready', 'preparing']);
+
 export const prescriptionService = {
-  async list() {
-    return prescriptionRepository.list();
+  async list(user) {
+    return prescriptionRepository.list(user);
   },
 
   async create(payload, user) {
-    // Verify the doctor can only prescribe for their assigned patients
     const patient = await patientRepository.findById(payload.patientId);
     if (!patient) {
       throw new ApiError(404, 'Patient not found');
@@ -44,5 +47,61 @@ export const prescriptionService = {
     } finally {
       connection.release();
     }
+  },
+
+  async approve(prescriptionId, user) {
+    const prescription = await prescriptionRepository.findById(prescriptionId);
+    if (!prescription) {
+      throw new ApiError(404, 'Prescription not found');
+    }
+    if (!APPROVABLE_STATUSES.has(prescription.status)) {
+      throw new ApiError(400, `Prescription cannot be approved from status: ${prescription.status}`);
+    }
+
+    await prescriptionRepository.updateReviewStatus({
+      prescriptionId,
+      status: 'approved',
+      reviewedBy: user.id,
+      rejectionReason: null,
+    });
+
+    return prescriptionRepository.findById(prescriptionId);
+  },
+
+  async reject(prescriptionId, reason, user) {
+    const prescription = await prescriptionRepository.findById(prescriptionId);
+    if (!prescription) {
+      throw new ApiError(404, 'Prescription not found');
+    }
+    if (!REJECTABLE_STATUSES.has(prescription.status)) {
+      throw new ApiError(400, `Prescription cannot be rejected from status: ${prescription.status}`);
+    }
+
+    await prescriptionRepository.updateReviewStatus({
+      prescriptionId,
+      status: 'rejected',
+      reviewedBy: user.id,
+      rejectionReason: reason,
+    });
+
+    return prescriptionRepository.findById(prescriptionId);
+  },
+
+  async dispatch(prescriptionId, payload, user) {
+    const prescription = await prescriptionRepository.findById(prescriptionId);
+    if (!prescription) {
+      throw new ApiError(404, 'Prescription not found');
+    }
+    if (!DISPATCHABLE_STATUSES.has(prescription.status)) {
+      throw new ApiError(400, `Prescription cannot be dispatched from status: ${prescription.status}`);
+    }
+
+    await prescriptionRepository.markDispatched({
+      prescriptionId,
+      reviewedBy: user.id,
+      notes: payload.notes || null,
+    });
+
+    return prescriptionRepository.findById(prescriptionId);
   },
 };

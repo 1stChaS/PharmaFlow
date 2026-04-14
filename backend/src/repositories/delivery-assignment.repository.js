@@ -1,8 +1,11 @@
 import { pool } from '../config/database.js';
 
 export const deliveryAssignmentRepository = {
-  async create(payload) {
-    const [result] = await pool.query(
+  async create(connectionOrPayload, maybePayload) {
+    const connection = maybePayload ? connectionOrPayload : pool;
+    const payload = maybePayload || connectionOrPayload;
+
+    const [result] = await connection.query(
       `INSERT INTO delivery_assignments (
         prescription_id, assigned_staff_id, assigned_by, building, delivery_location, notes
       ) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -28,13 +31,58 @@ export const deliveryAssignmentRepository = {
     return rows;
   },
 
-  async markDelivered({ assignmentId, nurseId, receivedByName }) {
-    const [result] = await pool.query(
-      `UPDATE delivery_assignments
-       SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP, marked_delivered_by = ?, received_by_name = ?
+  async markPrescriptionDispatched(connectionOrPool, prescriptionId, reviewedBy) {
+    const db = connectionOrPool || pool;
+    const [result] = await db.query(
+      `UPDATE prescriptions
+       SET status = 'dispatched', reviewed_by = COALESCE(reviewed_by, ?), reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP)
        WHERE id = ?`,
-      [nurseId, receivedByName, assignmentId],
+      [reviewedBy, prescriptionId],
     );
     return result.affectedRows > 0;
+  },
+
+  async markDelivered({ assignmentId, nurseId, receivedByName }) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [[assignment]] = await connection.query(
+        'SELECT prescription_id FROM delivery_assignments WHERE id = ? LIMIT 1',
+        [assignmentId],
+      );
+
+      if (!assignment) {
+        await connection.rollback();
+        return false;
+      }
+
+      const [result] = await connection.query(
+        `UPDATE delivery_assignments
+         SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP, marked_delivered_by = ?, received_by_name = ?
+         WHERE id = ?`,
+        [nurseId, receivedByName, assignmentId],
+      );
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return false;
+      }
+
+      await connection.query(
+        `UPDATE prescriptions
+         SET status = 'delivered'
+         WHERE id = ?`,
+        [assignment.prescription_id],
+      );
+
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 };

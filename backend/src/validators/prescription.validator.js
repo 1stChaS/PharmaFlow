@@ -9,3 +9,11 @@ export const createPrescriptionValidator = [
   body('items.*.quantity').isInt({ min: 1 }),
   body('items.*.dosageInstructions').trim().notEmpty(),
 ];
+
+export const rejectPrescriptionValidator = [
+  body('reason').trim().notEmpty().withMessage('Rejection reason is required'),
+];
+
+export const dispatchPrescriptionValidator = [
+  body('notes').optional().trim(),
+];
