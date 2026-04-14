@@ -40,16 +40,15 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['pharmacist', 'doctor', 'nurse', 'administrator'] },
   { label: 'Inventory', href: '/dashboard/inventory', icon: Package, roles: ['pharmacist', 'administrator'] },
-  { label: 'Add Drug', href: '/dashboard/inventory/add', icon: PlusCircle, roles: ['pharmacist', 'administrator'] },
-  { label: 'Drug Requests', href: '/dashboard/requests', icon: ClipboardList, roles: ['pharmacist', 'administrator'], badge: 2 },
-  { label: 'My Requests', href: '/dashboard/my-requests', icon: History, roles: ['doctor', 'nurse'] },
-  { label: 'Patients', href: '/dashboard/patients', icon: UserRound, roles: ['pharmacist', 'doctor', 'nurse', 'administrator'] },
+  { label: 'Add Drug', href: '/dashboard/inventory/add', icon: PlusCircle, roles: ['pharmacist'] },
+  { label: 'Drug Requests', href: '/dashboard/requests', icon: ClipboardList, roles: ['pharmacist'], badge: 2 },
+  { label: 'My Requests', href: '/dashboard/my-requests', icon: History, roles: ['doctor'] },
+  { label: 'Patients', href: '/dashboard/patients', icon: UserRound, roles: ['doctor'] },
   { label: 'Deliveries', href: '/dashboard/deliveries', icon: Truck, roles: ['pharmacist', 'administrator', 'doctor', 'nurse'] },
   { label: 'Admin Monitoring', href: '/dashboard/admin-monitoring', icon: Activity, roles: ['administrator'] },
-  { label: 'Expiry Alerts', href: '/dashboard/alerts', icon: AlertTriangle, roles: ['pharmacist', 'administrator'] },
-  { label: 'Reports', href: '/dashboard/reports', icon: FileBarChart, roles: ['pharmacist', 'administrator'] },
+  { label: 'Expiry Alerts', href: '/dashboard/alerts', icon: AlertTriangle, roles: ['pharmacist'] },
+  { label: 'Reports', href: '/dashboard/reports', icon: FileBarChart, roles: ['pharmacist'] },
   { label: 'User Management', href: '/dashboard/users', icon: Users, roles: ['administrator'] },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['administrator'] },
 ]
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
