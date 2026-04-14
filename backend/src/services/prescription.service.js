@@ -1,5 +1,7 @@
 import { pool } from '../config/database.js';
 import { prescriptionRepository } from '../repositories/prescription.repository.js';
+import { patientRepository } from '../repositories/patient.repository.js';
+import { ApiError } from '../utils/api-error.js';
 
 export const prescriptionService = {
   async list() {
@@ -7,6 +9,15 @@ export const prescriptionService = {
   },
 
   async create(payload, user) {
+    // Verify the doctor can only prescribe for their assigned patients
+    const patient = await patientRepository.findById(payload.patientId);
+    if (!patient) {
+      throw new ApiError(404, 'Patient not found');
+    }
+    if (patient.assigned_doctor_id !== user.id) {
+      throw new ApiError(403, 'You can only prescribe for patients assigned to you');
+    }
+
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();

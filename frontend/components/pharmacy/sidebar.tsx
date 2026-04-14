@@ -194,7 +194,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
               </svg>
             </div>
-            <span className="font-bold">MediCare</span>
+            <span className="font-bold">PharmaFlow</span>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl">
             <X className="h-5 w-5" />

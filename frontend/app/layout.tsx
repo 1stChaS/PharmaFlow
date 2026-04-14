@@ -9,8 +9,8 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
-  title: 'MediCare Pharmacy | Hospital Pharmacy Management',
-  description: 'A modern, friendly hospital pharmacy management system for tracking inventory, requests, and deliveries.',
+  title: 'PharmaFlow | Hospital Pharmacy Management',
+  description: 'Hospital Pharmacy and Drug Distribution Management System.',
 }
 
 export const viewport = {

@@ -63,7 +63,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               </svg>
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-foreground">MediCare Pharmacy</h1>
+              <h1 className="text-lg font-bold text-foreground">PharmaFlow</h1>
               <p className="text-xs text-muted-foreground">Hospital Management System</p>
             </div>
           </div>
