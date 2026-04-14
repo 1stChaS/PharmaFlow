@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { 
   Pill, 
@@ -311,67 +311,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Quick Actions for non-pharmacists */}
-      {!isPharmacist && (
-        <Card className="rounded-2xl border-border/50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-            <CardDescription>Common tasks for your role</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link href="/dashboard/my-requests" className="group">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-6 text-center transition-all hover:bg-primary/5 hover:border-primary/30 hover:shadow-md">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 transition-transform group-hover:scale-110">
-                    <ClipboardList className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">My Requests</p>
-                    <p className="text-xs text-muted-foreground">View request history</p>
-                  </div>
-                </div>
-              </Link>
-              
-              <Link href="/dashboard/my-requests" className="group">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-6 text-center transition-all hover:bg-info/5 hover:border-info/30 hover:shadow-md">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 transition-transform group-hover:scale-110">
-                    <ClipboardList className="h-6 w-6 text-info" />
-                  </div>
-                  <div>
-                    <p className="font-medium">My Requests</p>
-                    <p className="text-xs text-muted-foreground">View request history</p>
-                  </div>
-                </div>
-              </Link>
-              
-              <Link href="/dashboard/deliveries" className="group">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-6 text-center transition-all hover:bg-success/5 hover:border-success/30 hover:shadow-md">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10 transition-transform group-hover:scale-110">
-                    <Truck className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Track Delivery</p>
-                    <p className="text-xs text-muted-foreground">Check delivery status</p>
-                  </div>
-                </div>
-              </Link>
-              
-              <div className="group cursor-pointer">
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-6 text-center transition-all hover:bg-warning/5 hover:border-warning/30 hover:shadow-md">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 transition-transform group-hover:scale-110">
-                    <Package className="h-6 w-6 text-warning" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Drug Catalog</p>
-                    <p className="text-xs text-muted-foreground">Browse available drugs</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   )
