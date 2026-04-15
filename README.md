@@ -98,7 +98,6 @@ The system follows a layered architecture:
 - Submit drug requests  
 
 #### Doctor Panel
-![Doctor Dashboard](picture/Doctor-dashboard.png)
 ![Doctor Prescription](picture/Doctor-prescription.png)
 ![Doctor Prescription Form](picture/Doctor-prescription-form.png)
 ![Doctor Prescription Form Continued](picture/Doctor-prescription-form-cont.png)
