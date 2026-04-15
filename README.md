@@ -16,6 +16,8 @@ In many hospitals, patients must personally collect medication from the pharmacy
 * Track medication distribution within the hospital
 * Monitor drug expiry and reduce medication waste
 
+---
+
 ## System Features
 
 ### 1. Inventory Management
@@ -43,28 +45,9 @@ In many hospitals, patients must personally collect medication from the pharmacy
 * Track drug handling history
 * Generate inventory and usage reports
 
-## User Roles
+---
 
-### Pharmacist
-
-Manages drug inventory, approves requests, and prepares medication for dispatch.
-
-### Doctor / Nurse
-
-Requests medication for patients and confirms delivery.
-
-### Hospital Administrator
-
-Manages users, monitors system activities, and reviews reports.
-
-## Technology Stack
-
-* Frontend: React.js
-* Backend: Node.js with Express.js
-* Database: MySQL
-* Authentication: JWT and bcrypt
-
-## System Workflow
+## System Architecture Overview
 
 1. Users log in and access role-based dashboards.
 2. Doctors or nurses submit drug requests.
@@ -87,3 +70,68 @@ The system follows a layered architecture:
 * JWT-based authentication
 * Role-based access control
 
+---
+
+## User Roles & Permissions
+
+### Pharmacists
+- Manage inventory  
+- Approve/reject drug requests  
+- Track deliveries 
+
+
+### Doctors
+- Prescribe drugs  
+- Submit drug requests  
+
+### Nurses
+- Input patient information  
+- Confirm medication status  
+
+### Administrators
+- Manage users  
+- Monitor reports 
+![Admin Management](picture/Admin-management.png) 
+
+---
+
+## Technology Stack
+
+* Frontend: React.js
+* Backend: Node.js with Express.js
+* Database: MySQL
+* Authentication: JWT and bcrypt
+
+
+## 🛠️ Installation & Setup Instructions
+
+### Clone Repository
+```bash
+git clone https://github.com/1stChaS/PharmaFlow.git
+cd PharmaFlow
+
+## Setup
+
+### Backend
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### Database (MySQL)
+```bash
+mysql -u root -p hospital_pharmacy < backend/database/001-create-tables.sql
+mysql -u root -p hospital_pharmacy < backend/database/002-seed-data.sql
+mysql -u root -p hospital_pharmacy < backend/database/003-add-patients-prescriptions.sql
+mysql -u root -p hospital_pharmacy < backend/database/004-seed-role-features.sql
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+echo "NEXT_PUBLIC_API_URL=http://localhost:3001/api" > .env.local
+npm run dev
+```
