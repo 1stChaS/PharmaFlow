@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ClipboardList,
   Clock,
@@ -27,33 +27,51 @@ import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge, PriorityBadge } from '@/components/pharmacy/status-badge'
 import { StatCard } from '@/components/pharmacy/stat-card'
 import { EmptyState } from '@/components/pharmacy/empty-state'
+import { requestsApi, ApiError } from '@/lib/api'
 import { DrugRequest } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useEffect } from 'react'
-import api from '@/lib/api'
 
-useEffect(() => {
-  fetchRequests()
-}, [])
-
-const fetchRequests = async () => {
-  try {
-    const res = await api.get('/requests')
-    setRequests(res.data)
-  } catch (err) {
-    console.error(err)
-  }
-}
-
-type FilterTab = 'all' | 'pending' | 'approved' | 'dispatched' | 'delivered' | 'rejected'
+type FilterTab =
+  | 'all'
+  | 'pending'
+  | 'approved'
+  | 'dispatched'
+  | 'delivered'
+  | 'rejected'
 
 export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const [requests, setRequests] = useState<DrugRequest[]>(mockRequests)
+  const [requests, setRequests] = useState<DrugRequest[]>([])
   const [selectedRequest, setSelectedRequest] = useState<DrugRequest | null>(null)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true)
+      setError('')
+      const data = await requestsApi.getAll()
+      setRequests(data as DrugRequest[])
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to load requests'
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
 
   const filteredRequests = useMemo(() => {
     if (activeTab === 'all') return requests
@@ -66,6 +84,7 @@ export default function RequestsPage() {
       approved: requests.filter((r) => r.status === 'approved').length,
       dispatched: requests.filter((r) => r.status === 'dispatched').length,
       delivered: requests.filter((r) => r.status === 'delivered').length,
+      rejected: requests.filter((r) => r.status === 'rejected').length,
     }),
     [requests]
   )
@@ -76,84 +95,82 @@ export default function RequestsPage() {
     { value: 'approved', label: 'Approved', count: stats.approved },
     { value: 'dispatched', label: 'Dispatched', count: stats.dispatched },
     { value: 'delivered', label: 'Delivered', count: stats.delivered },
-    { value: 'rejected', label: 'Rejected', count: requests.filter((r) => r.status === 'rejected').length },
+    { value: 'rejected', label: 'Rejected', count: stats.rejected },
   ]
 
-  const updateRequestStatus = (
-    requestId: number | string,
-    newStatus: DrugRequest['status'],
-    extra?: Partial<DrugRequest>
-  ) => {
-    setRequests((prev) =>
-      prev.map((request) =>
-        request.id === requestId
-          ? {
-              ...request,
-              status: newStatus,
-              ...extra,
-              items:
-                newStatus === 'approved'
-                  ? request.items.map((item) => ({
-                      ...item,
-                      quantity_approved:
-                        item.quantity_approved && item.quantity_approved > 0
-                          ? item.quantity_approved
-                          : item.quantity_requested,
-                    }))
-                  : request.items,
-            }
-          : request
-      )
-    )
+  const refreshSelectedRequest = (requestId: number | string) => {
+    setSelectedRequest((prev) => {
+      if (!prev || prev.id !== requestId) return prev
+      const updated = requests.find((r) => r.id === requestId)
+      return updated ?? prev
+    })
+  }
 
-    if (selectedRequest?.id === requestId) {
-      const current = requests.find((r) => r.id === requestId)
-      if (current) {
-        setSelectedRequest({
-          ...current,
-          status: newStatus,
-          ...extra,
-          items:
-            newStatus === 'approved'
-              ? current.items.map((item) => ({
-                  ...item,
-                  quantity_approved:
-                    item.quantity_approved && item.quantity_approved > 0
-                      ? item.quantity_approved
-                      : item.quantity_requested,
-                }))
-              : current.items,
-        })
-      }
+  const handleApprove = async () => {
+    if (!selectedRequest) return
+
+    try {
+      setActionLoading(true)
+      setError('')
+      await requestsApi.approve(selectedRequest.id)
+      await fetchRequests()
+      setShowApproveDialog(false)
+      setSelectedRequest(null)
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to approve request'
+      setError(message)
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  const handleApprove = () => {
-    if (!selectedRequest) return
-
-    updateRequestStatus(selectedRequest.id, 'approved', {
-      approved_by_name: 'Pharmacist',
-    })
-
-    setShowApproveDialog(false)
-    setSelectedRequest(null)
-  }
-
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedRequest || !rejectionReason.trim()) return
 
-    updateRequestStatus(selectedRequest.id, 'rejected', {
-      approved_by_name: 'Pharmacist',
-      notes: `${selectedRequest.notes ? `${selectedRequest.notes}\n\n` : ''}Rejection reason: ${rejectionReason.trim()}`,
-    })
-
-    setShowRejectDialog(false)
-    setRejectionReason('')
-    setSelectedRequest(null)
+    try {
+      setActionLoading(true)
+      setError('')
+      await requestsApi.reject(selectedRequest.id, rejectionReason.trim())
+      await fetchRequests()
+      setShowRejectDialog(false)
+      setRejectionReason('')
+      setSelectedRequest(null)
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to reject request'
+      setError(message)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  const handleDispatch = (request: DrugRequest) => {
-    updateRequestStatus(request.id, 'dispatched')
+  const handleDispatch = async (request: DrugRequest) => {
+    try {
+      setActionLoading(true)
+      setError('')
+      await requestsApi.dispatch(request.id)
+      await fetchRequests()
+      refreshSelectedRequest(request.id)
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to dispatch request'
+      setError(message)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const closeDetails = () => {
@@ -169,6 +186,12 @@ export default function RequestsPage() {
         <h1 className="text-2xl font-bold">Drug Requests</h1>
         <p className="text-muted-foreground">Review and manage incoming drug requests</p>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -236,7 +259,11 @@ export default function RequestsPage() {
         </CardHeader>
 
         <CardContent className="p-4">
-          {filteredRequests.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              Loading requests...
+            </div>
+          ) : filteredRequests.length === 0 ? (
             <EmptyState
               variant="requests"
               title="No requests found"
@@ -317,6 +344,7 @@ export default function RequestsPage() {
                               setSelectedRequest(request)
                               setShowApproveDialog(true)
                             }}
+                            disabled={actionLoading}
                           >
                             <Check className="mr-1.5 h-4 w-4" />
                             Approve
@@ -330,6 +358,7 @@ export default function RequestsPage() {
                               setSelectedRequest(request)
                               setShowRejectDialog(true)
                             }}
+                            disabled={actionLoading}
                           >
                             <X className="mr-1.5 h-4 w-4" />
                             Reject
@@ -342,6 +371,7 @@ export default function RequestsPage() {
                           size="sm"
                           className="rounded-lg"
                           onClick={() => handleDispatch(request)}
+                          disabled={actionLoading}
                         >
                           <Truck className="mr-1.5 h-4 w-4" />
                           Dispatch
@@ -424,6 +454,13 @@ export default function RequestsPage() {
                 </div>
               )}
 
+              {selectedRequest.rejection_reason && (
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+                  <p className="text-xs text-muted-foreground">Rejection Reason</p>
+                  <p className="font-medium whitespace-pre-line">{selectedRequest.rejection_reason}</p>
+                </div>
+              )}
+
               <div>
                 <h4 className="font-semibold mb-3">Requested Items</h4>
                 <div className="space-y-2">
@@ -459,7 +496,7 @@ export default function RequestsPage() {
                 {selectedRequest.approved_by_name && (
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">
-                      {selectedRequest.status === 'rejected' ? 'Rejected' : 'Approved'} by
+                      {selectedRequest.status === 'rejected' ? 'Reviewed by' : 'Approved by'}
                     </p>
                     <p className="font-medium">{selectedRequest.approved_by_name}</p>
                   </div>
@@ -504,6 +541,7 @@ export default function RequestsPage() {
                 setShowApproveDialog(false)
                 setSelectedRequest(null)
               }}
+              disabled={actionLoading}
             >
               Cancel
             </Button>
@@ -511,9 +549,10 @@ export default function RequestsPage() {
             <Button
               className="rounded-xl bg-success hover:bg-success/90"
               onClick={handleApprove}
+              disabled={actionLoading}
             >
               <Check className="mr-2 h-4 w-4" />
-              Confirm Approval
+              {actionLoading ? 'Approving...' : 'Confirm Approval'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -543,6 +582,7 @@ export default function RequestsPage() {
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="rounded-xl min-h-24"
+              disabled={actionLoading}
             />
           </div>
 
@@ -555,6 +595,7 @@ export default function RequestsPage() {
                 setRejectionReason('')
                 setSelectedRequest(null)
               }}
+              disabled={actionLoading}
             >
               Cancel
             </Button>
@@ -563,10 +604,10 @@ export default function RequestsPage() {
               variant="destructive"
               className="rounded-xl"
               onClick={handleReject}
-              disabled={!rejectionReason.trim()}
+              disabled={!rejectionReason.trim() || actionLoading}
             >
               <X className="mr-2 h-4 w-4" />
-              Reject Request
+              {actionLoading ? 'Rejecting...' : 'Reject Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

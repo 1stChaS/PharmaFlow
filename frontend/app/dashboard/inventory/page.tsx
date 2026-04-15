@@ -43,9 +43,13 @@ import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/pharmacy/status-badge'
 import { StatCard } from '@/components/pharmacy/stat-card'
 import { EmptyState, TableSkeleton } from '@/components/pharmacy/empty-state'
-import { mockDrugs, mockCategories } from '@/lib/mock-data'
 import { Drug } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import InventoryList from '@/components/pharmacy/'
+
+export default function InventoryPage() {
+  return <InventoryList />
+}
 
 export default function InventoryPage() {
   const [search, setSearch] = useState('')
@@ -53,6 +57,8 @@ export default function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null)
   const [isLoading] = useState(false)
+  const drugs: Drug[] = []
+  const categories = []
 
   // Filter drugs
   const filteredDrugs = useMemo(() => {
