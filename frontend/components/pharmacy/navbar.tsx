@@ -159,16 +159,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer rounded-xl gap-2">
-                <User className="h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer rounded-xl gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="cursor-pointer rounded-xl gap-2 text-destructive focus:text-destructive"
                 onClick={logout}
