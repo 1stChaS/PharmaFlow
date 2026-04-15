@@ -71,6 +71,31 @@ export interface Patient {
   roomNumber?: string
 }
 
+export interface CreatePatientInput {
+  fullName: string
+  age: number
+  gender: 'male' | 'female' | 'other'
+  weight?: number
+  height?: number
+  bloodPressure?: string
+  underlyingConditions?: string
+  allergies?: string
+  chiefComplaint: string
+  building: string
+  roomNumber?: string
+  assignedDoctorId?: number
+}
+
+export const patientsApi = {
+  getAll: () => apiRequest<Patient[]>('/patients'),
+
+  create: (data: CreatePatientInput) =>
+    apiRequest('/patients', {
+      method: 'POST',
+      body: data,
+    }),
+}
+
 export interface PrescriptionItemInput {
   drugId: number
   quantity: number
@@ -145,13 +170,6 @@ export const usersApi = {
   getAll: () => apiRequest<User[]>('/users'),
   create: (payload: { username: string; email: string; password: string; fullName: string; role: string; department?: string }) =>
     apiRequest<{ id: number }>('/users', { method: 'POST', body: payload }),
-}
-
-export const patientsApi = {
-  getAll: () => apiRequest<Patient[]>('/patients'),
-  getById: (id: number) => apiRequest<Patient>(`/patients/${id}`),
-  create: (payload: Omit<Patient, 'id' | 'patientNumber' | 'bmi'>) =>
-    apiRequest<{ id: number; patientNumber: string }>('/patients', { method: 'POST', body: payload }),
 }
 
 export const prescriptionsApi = {

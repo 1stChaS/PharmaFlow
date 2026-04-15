@@ -47,7 +47,7 @@ export const patientService = {
     return mapPatient(row);
   },
 
-  async create(payload, user) {
+  async create(payload, actor) {
     if (!payload.fullName || !payload.age || !payload.gender) {
       throw new ApiError(400, 'fullName, age, and gender are required');
     }
@@ -60,8 +60,21 @@ export const patientService = {
 
     const [result] = await pool.query(
       `INSERT INTO patients (
-        patient_number, full_name, age, gender, weight, height, blood_pressure, bmi,
-        underlying_conditions, allergies, chief_complaint, building, room_number, registered_by, assigned_doctor_id
+        patient_number,
+        full_name,
+        age,
+        gender,
+        weight,
+        height,
+        blood_pressure,
+        bmi,
+        underlying_conditions,
+        allergies,
+        chief_complaint,
+        building,
+        room_number,
+        registered_by,
+        assigned_doctor_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         patientNumber,
@@ -71,15 +84,15 @@ export const patientService = {
         payload.weight || null,
         payload.height || null,
         payload.bloodPressure || null,
-        bmi,
+        bmi || null,
         payload.underlyingConditions || null,
         payload.allergies || null,
-        payload.chiefComplaint || null,
-        payload.building || null,
+        payload.chiefComplaint,
+        payload.building,
         payload.roomNumber || null,
-        user.id,
+        actor.id,
         payload.assignedDoctorId || null,
-      ],
+      ]
     );
 
     return { id: result.insertId, patientNumber };

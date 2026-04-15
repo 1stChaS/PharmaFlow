@@ -5,9 +5,12 @@ import { ROLES } from '../constants/roles.js';
 
 const router = Router();
 
-router.use(authenticate, authorize(ROLES.ADMINISTRATOR));
-router.get('/', userController.list);
-router.post('/', userController.create);
-router.put('/:id', userController.update);
+router.use(authenticate);
+
+// allow nurse to fetch doctor list
+router.get('/', authorize(ROLES.ADMINISTRATOR, ROLES.NURSE), userController.list);
+
+router.post('/', authorize(ROLES.ADMINISTRATOR), userController.create);
+router.put('/:id', authorize(ROLES.ADMINISTRATOR), userController.update);
 
 export default router;

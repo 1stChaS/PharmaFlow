@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { patientsApi } from '@/lib/api'
+import { usersApi } from '@/lib/api'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,7 @@ type PatientFormState = {
   medicationDetails: string
   building: string
   roomNumber: string
+  assignedDoctorId: string,
 }
 
 const defaultForm: PatientFormState = {
@@ -66,21 +67,7 @@ const defaultForm: PatientFormState = {
   medicationDetails: '',
   building: 'Main Building',
   roomNumber: '',
-}
-
-function loadPatientsFromStorage(): Patient[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(PATIENTS_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Patient[]) : []
-  } catch {
-    return []
-  }
-}
-
-function savePatientsToStorage(patients: Patient[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients))
+  assignedDoctorId: '',
 }
 
 function calculateBMI(weight: number, heightCm: number) {
@@ -109,9 +96,8 @@ export default function PatientsPage() {
     try {
       const data = await patientsApi.getAll()
       setPatients(data)
-    } catch (error) {
-      console.error('Failed to load patients from API:', error)
-      setPatients([])
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -150,22 +136,22 @@ export default function PatientsPage() {
 
   try {
     await patientsApi.create({
-      fullName: form.fullName.trim(),
+      fullName: form.fullName,
       age: Number(form.age),
       gender: form.gender,
       weight: Number(form.weight),
       height: Number(form.height),
-      bloodPressure: form.bloodPressure.trim(),
-      chronicDiseases: form.chronicDiseases.trim(),
-      drugAllergies: form.drugAllergies.trim(),
-      chiefComplaint: form.chiefComplaint.trim(),
-      medicationDetails: form.medicationDetails.trim(),
-      building: form.building.trim(),
-      roomNumber: form.roomNumber.trim(),
+      bloodPressure: form.bloodPressure,
+      underlyingConditions: form.chronicDiseases, // map here
+      allergies: form.drugAllergies,              // map here
+      chiefComplaint: form.chiefComplaint,
+      building: form.building,
+      roomNumber: form.roomNumber,
     })
 
-    const freshPatients = await patientsApi.getAll()
-    setPatients(freshPatients)
+    // reload from DB
+    const updated = await patientsApi.getAll()
+    setPatients(updated)
 
     setSuccessMessage(`Patient ${form.fullName} registered successfully.`)
     resetForm()
@@ -231,6 +217,21 @@ export default function PatientsPage() {
 
     setEditPatient(null)
   }
+
+  const [doctors, setDoctors] = useState<any[]>([])
+
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        const users = await usersApi.getAll()
+        setDoctors(users.filter((u) => u.role === 'doctor'))
+      } catch (error) {
+        console.error('Failed to load doctors', error)
+      }
+    }
+
+    loadDoctors()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -386,6 +387,21 @@ export default function PatientsPage() {
                   onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
                   className="rounded-xl"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Assign Doctor *</Label>
+                <select
+                  value={form.assignedDoctorId}
+                  onChange={(e) => setForm({ ...form, assignedDoctorId: e.target.value })}
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select doctor</option>
+                  {doctors.map((doctor) => (
+                    <option key={doctor.id} value={doctor.id}>
+                      {doctor.fullName} {doctor.department ? `(${doctor.department})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

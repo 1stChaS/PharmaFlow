@@ -38,15 +38,15 @@ export interface Patient {
   fullName: string
   age: number
   gender: 'male' | 'female' | 'other'
-  weight: number
-  height: number
-  bloodPressure: string
-  bmi: number
-  chronicDiseases: string
-  drugAllergies: string
+  weight?: number
+  height?: number
+  bloodPressure?: string
+  bmi?: number
+  chronicDiseases?: string
+  drugAllergies?: string
   chiefComplaint: string
-  medicationDetails: string
-  building?: string
+  medicationDetails?: string
+  building: string
   roomNumber?: string
   registeredBy?: number
   registeredByName?: string
