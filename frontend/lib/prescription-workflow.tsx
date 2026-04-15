@@ -1,32 +1,6 @@
-import { Patient } from './api'
+import type { WorkflowPrescriptionRequest, WorkflowRequestStatus } from './types'
 
-export interface WorkflowPrescriptionItem {
-  id: string
-  drugId: number
-  drugName: string
-  drugCode: string
-  quantity: number
-  dosageInstructions: string
-  duration: string
-  notes: string
-}
-
-export interface WorkflowPrescriptionRequest {
-  id: string
-  patientId: number
-  patientName: string
-  patientSnapshot: Patient
-  createdAt: string
-  requiredByDate: string
-  priority: 'low' | 'normal' | 'high' | 'urgent'
-  diagnosis: string
-  notes: string
-  status: 'pending' | 'approved' | 'dispatched' | 'delivered'
-  items: WorkflowPrescriptionItem[]
-}
-
-const WORKFLOW_REQUESTS_KEY = 'workflow_prescription_requests'
-const COMPLETED_PATIENTS_KEY = 'workflow_completed_patient_ids'
+const WORKFLOW_REQUESTS_KEY = 'workflow_prescription_requests_v2'
 
 function isBrowser() {
   return typeof window !== 'undefined'
@@ -43,29 +17,53 @@ export function getWorkflowPrescriptionRequests(): WorkflowPrescriptionRequest[]
   }
 }
 
+export function saveWorkflowPrescriptionRequests(requests: WorkflowPrescriptionRequest[]) {
+  if (!isBrowser()) return
+  localStorage.setItem(WORKFLOW_REQUESTS_KEY, JSON.stringify(requests))
+}
+
 export function addWorkflowPrescriptionRequest(request: WorkflowPrescriptionRequest) {
-  if (!isBrowser()) return
-
   const current = getWorkflowPrescriptionRequests()
-  localStorage.setItem(WORKFLOW_REQUESTS_KEY, JSON.stringify([request, ...current]))
+  saveWorkflowPrescriptionRequests([request, ...current])
 }
 
-export function getCompletedPatientIds(): number[] {
-  if (!isBrowser()) return []
-
-  try {
-    const raw = localStorage.getItem(COMPLETED_PATIENTS_KEY)
-    return raw ? (JSON.parse(raw) as number[]) : []
-  } catch {
-    return []
-  }
+export function updateWorkflowPrescriptionRequest(
+  requestId: string,
+  updater: (request: WorkflowPrescriptionRequest) => WorkflowPrescriptionRequest
+) {
+  const current = getWorkflowPrescriptionRequests()
+  const updated = current.map((request) =>
+    request.id === requestId ? updater(request) : request
+  )
+  saveWorkflowPrescriptionRequests(updated)
 }
 
-export function markPatientAsPrescribed(patientId: number) {
-  if (!isBrowser()) return
+export function updateWorkflowPrescriptionStatus(
+  requestId: string,
+  status: WorkflowRequestStatus,
+  extra: Partial<WorkflowPrescriptionRequest> = {}
+) {
+  updateWorkflowPrescriptionRequest(requestId, (request) => ({
+    ...request,
+    status,
+    ...extra,
+  }))
+}
 
-  const current = getCompletedPatientIds()
-  if (!current.includes(patientId)) {
-    localStorage.setItem(COMPLETED_PATIENTS_KEY, JSON.stringify([...current, patientId]))
-  }
+export function generateRequestNumber() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const time = now.getTime().toString().slice(-5)
+  return `REQ-${y}${m}${d}-${time}`
+}
+
+export function generatePatientNumber() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const time = now.getTime().toString().slice(-4)
+  return `PT-${y}${m}${d}-${time}`
 }

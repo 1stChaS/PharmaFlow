@@ -1,3 +1,4 @@
+// frontend/app/dashboard/alerts/page.tsx
 "use client";
 
 import { useState } from "react";

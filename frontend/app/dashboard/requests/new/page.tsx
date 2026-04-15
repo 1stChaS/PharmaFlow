@@ -1,3 +1,4 @@
+// frontend/app/dashboard/requests/new/page.tsx
 'use client'
 
 import { useState, useMemo } from 'react'
@@ -18,7 +19,6 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth-context'
-import { mockDrugs, mockPatients } from '@/lib/mock-data'
 import { InlineAlert } from '@/components/pharmacy/alert-card'
 
 interface RequestItem {
@@ -41,6 +41,8 @@ export default function NewRequestPage() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const mockPatients: any[] = []
+  const mockDrugs: any[] = []
 
   // Only doctors can create requests
   const isDoctor = user?.role === 'doctor'

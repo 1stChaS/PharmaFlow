@@ -1,3 +1,4 @@
+// frontend/app/dashboard/deliveries/page.tsx
 'use client'
 
 import { useState, useMemo } from 'react'
@@ -28,7 +29,6 @@ import { StatusBadge } from '@/components/pharmacy/status-badge'
 import { StatCard } from '@/components/pharmacy/stat-card'
 import { EmptyState } from '@/components/pharmacy/empty-state'
 import { useAuth } from '@/lib/auth-context'
-import { mockDeliveries } from '@/lib/mock-data'
 import { Delivery } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +43,8 @@ export default function DeliveriesPage() {
   const [receiverName, setReceiverName] = useState('')
 
   const isPharmacist = user?.role === 'pharmacist' || user?.role === 'administrator'
+
+  const mockDeliveries: Delivery[] = []
 
   // Filter deliveries
   const filteredDeliveries = useMemo(() => {

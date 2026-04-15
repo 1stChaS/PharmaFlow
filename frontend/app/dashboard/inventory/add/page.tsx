@@ -1,3 +1,4 @@
+// frontend/app/dashboard/inventory/add/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -17,7 +18,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { mockCategories } from '@/lib/mock-data'
 import { InlineAlert } from '@/components/pharmacy/alert-card'
 
 const dosageForms = [
@@ -31,6 +31,14 @@ const dosageForms = [
   { value: 'powder', label: 'Powder' },
   { value: 'suspension', label: 'Suspension' },
   { value: 'other', label: 'Other' },
+]
+
+const mockCategories = [
+  { id: 1, name: 'Antibiotics' },
+  { id: 2, name: 'Analgesics' },
+  { id: 3, name: 'Cardiovascular' },
+  { id: 4, name: 'Respiratory' },
+  { id: 5, name: 'Vitamins' },
 ]
 
 export default function AddDrugPage() {

@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/lib/auth-context'
-import { mockNotifications } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 interface NavbarProps {
@@ -22,6 +21,7 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const { user, logout } = useAuth()
+  const mockNotifications: any[] = []
   const [notifications] = useState(mockNotifications.filter(n => !n.is_read).slice(0, 5))
 
   const getGreeting = () => {
