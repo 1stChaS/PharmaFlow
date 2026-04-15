@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { patientsApi } from '@/lib/api'
 import {
   Dialog,
   DialogContent,
@@ -98,12 +99,24 @@ export default function PatientsPage() {
   const [requiredByDate, setRequiredByDate] = useState(new Date().toISOString().split('T')[0])
   const [nurseNotes, setNurseNotes] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [editPatient, setEditPatient] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState<any>(null)
 
   const isNurse = user?.role === 'nurse'
 
   useEffect(() => {
-    setPatients(loadPatientsFromStorage())
-  }, [])
+  const loadPatients = async () => {
+    try {
+      const data = await patientsApi.getAll()
+      setPatients(data)
+    } catch (error) {
+      console.error('Failed to load patients from API:', error)
+      setPatients([])
+    }
+  }
+
+  loadPatients()
+}, [])
 
   const submittedPatientIds = useMemo(() => {
     const workflowRequests = getWorkflowPrescriptionRequests()
@@ -118,45 +131,49 @@ export default function PatientsPage() {
     setForm(defaultForm)
   }
 
-  const handleCreatePatient = () => {
-    if (
-      !form.fullName.trim() ||
-      !form.age ||
-      !form.weight ||
-      !form.height ||
-      !form.chiefComplaint.trim()
-    ) {
-      return
-    }
+  const handleCreatePatient = async () => {
+  if (!isNurse) {
+    alert('Only nurse accounts can register patients.')
+    return
+  }
 
-    const patient: Patient = {
-      id: Date.now(),
-      patientNumber: generatePatientNumber(),
+  if (
+    !form.fullName.trim() ||
+    !form.age ||
+    !form.weight ||
+    !form.height ||
+    !form.chiefComplaint.trim()
+  ) {
+    alert('Please fill in Patient Name, Age, Weight, Height, and Chief Complaint.')
+    return
+  }
+
+  try {
+    await patientsApi.create({
       fullName: form.fullName.trim(),
       age: Number(form.age),
       gender: form.gender,
       weight: Number(form.weight),
       height: Number(form.height),
       bloodPressure: form.bloodPressure.trim(),
-      bmi: calculateBMI(Number(form.weight), Number(form.height)),
       chronicDiseases: form.chronicDiseases.trim(),
       drugAllergies: form.drugAllergies.trim(),
       chiefComplaint: form.chiefComplaint.trim(),
       medicationDetails: form.medicationDetails.trim(),
       building: form.building.trim(),
       roomNumber: form.roomNumber.trim(),
-      registeredBy: user?.id,
-      registeredByName: user?.fullName,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    }
+    })
 
-    const updated = [patient, ...patients]
-    setPatients(updated)
-    savePatientsToStorage(updated)
-    setSuccessMessage(`Patient ${patient.fullName} registered successfully.`)
+    const freshPatients = await patientsApi.getAll()
+    setPatients(freshPatients)
+
+    setSuccessMessage(`Patient ${form.fullName} registered successfully.`)
     resetForm()
+  } catch (error) {
+    console.error(error)
+    alert('Failed to save patient to database.')
   }
+}
 
   const handleOpenSendDialog = (patient: Patient) => {
     setSelectedPatient(patient)
@@ -188,6 +205,31 @@ export default function PatientsPage() {
     setSuccessMessage(`Patient case for ${selectedPatient.fullName} was sent to doctor successfully.`)
     setSendDialogOpen(false)
     setSelectedPatient(null)
+  }
+
+  const handleDeletePatient = (id: number) => {
+  const updated = patients.filter(p => p.id !== id)
+  setPatients(updated)
+  localStorage.setItem('workflow_patients_v2', JSON.stringify(updated))
+  }
+
+  const handleUpdatePatient = (updatedPatient: any) => {
+    const updated = patients.map(p =>
+      p.id === updatedPatient.id ? updatedPatient : p
+    )
+    setPatients(updated)
+    localStorage.setItem('workflow_patients_v2', JSON.stringify(updated))
+  }
+
+  const handleSaveEdit = () => {
+    const updated = patients.map(p =>
+      p.id === editPatient.id ? editForm : p
+    )
+
+    setPatients(updated)
+    localStorage.setItem('workflow_patients_v2', JSON.stringify(updated))
+
+    setEditPatient(null)
   }
 
   return (
@@ -401,23 +443,34 @@ export default function PatientsPage() {
                           <TableCell className="max-w-[220px] truncate">
                             {patient.medicationDetails || '-'}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {alreadySent ? (
-                              <Badge variant="secondary" className="rounded-lg">
-                                Sent to doctor
-                              </Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="rounded-xl"
-                                onClick={() => handleOpenSendDialog(patient)}
-                                disabled={!isNurse}
-                              >
-                                <Send className="mr-2 h-4 w-4" />
-                                Send
-                              </Button>
-                            )}
-                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenSendDialog(patient)}
+                          >
+                            Send
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setEditPatient(patient)
+                              setEditForm(patient)
+                            }}
+                          >
+                            Edit
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeletePatient(patient.id)}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
                         </TableRow>
                       )
                     })}
@@ -487,6 +540,59 @@ export default function PatientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!editPatient} onOpenChange={() => setEditPatient(null)}>
+      <DialogContent className="rounded-2xl max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Edit Patient</DialogTitle>
+        </DialogHeader>
+
+        {editForm && (
+          <div className="space-y-3">
+
+            <Input
+              value={editForm.fullName}
+              onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
+              placeholder="Name"
+            />
+
+            <Input
+              type="number"
+              value={editForm.age}
+              onChange={(e) => setEditForm({...editForm, age: e.target.value})}
+              placeholder="Age"
+            />
+
+            <Input
+              value={editForm.bloodPressure}
+              onChange={(e) => setEditForm({...editForm, bloodPressure: e.target.value})}
+              placeholder="Blood Pressure"
+            />
+
+            <Textarea
+              value={editForm.chiefComplaint}
+              onChange={(e) => setEditForm({...editForm, chiefComplaint: e.target.value})}
+              placeholder="Chief Complaint"
+            />
+
+            <Textarea
+              value={editForm.medicationDetails}
+              onChange={(e) => setEditForm({...editForm, medicationDetails: e.target.value})}
+              placeholder="Medication Details"
+            />
+
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditPatient(null)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSaveEdit}>
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   )
 }

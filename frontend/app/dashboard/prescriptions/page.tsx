@@ -138,6 +138,7 @@ export default function PrescriptionsPage() {
 
     setSelectedRequest(null)
     reload()
+    window.dispatchEvent(new Event('storage'))
   }
 
   if (!isDoctor) {

@@ -1,18 +1,7 @@
-// frontend/app/dashboard/deliveries/page.tsx
 'use client'
 
-import { useState, useMemo } from 'react'
-import { 
-  Truck, 
-  Package,
-  MapPin,
-  Clock,
-  CheckCircle2,
-  User,
-  Calendar,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, Truck, Package, Calendar, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,126 +14,181 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { StatusBadge } from '@/components/pharmacy/status-badge'
-import { StatCard } from '@/components/pharmacy/stat-card'
 import { EmptyState } from '@/components/pharmacy/empty-state'
+import { StatCard } from '@/components/pharmacy/stat-card'
 import { useAuth } from '@/lib/auth-context'
-import { Delivery } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import type { WorkflowPrescriptionRequest } from '@/lib/types'
+import {
+  getWorkflowPrescriptionRequests,
+  updateWorkflowPrescriptionRequest,
+} from '@/lib/prescription-workflow'
 
-type FilterTab = 'all' | 'preparing' | 'in_transit' | 'delivered'
+type FilterTab = 'all' | 'prescribed' | 'dispatched' | 'received_complete'
+
+function getStatusLabel(status: WorkflowPrescriptionRequest['status']) {
+  switch (status) {
+    case 'submitted_to_doctor':
+      return 'Waiting Doctor'
+    case 'prescribed':
+      return 'Ready for Dispatch'
+    case 'dispatched':
+      return 'Dispatched'
+    case 'received_complete':
+      return 'Received Complete'
+    default:
+      return status
+  }
+}
+
+function getStatusClasses(status: WorkflowPrescriptionRequest['status']) {
+  switch (status) {
+    case 'prescribed':
+      return 'bg-blue-100 text-blue-700 border-blue-200'
+    case 'dispatched':
+      return 'bg-purple-100 text-purple-700 border-purple-200'
+    case 'received_complete':
+      return 'bg-green-100 text-green-700 border-green-200'
+    default:
+      return 'bg-muted text-muted-foreground border-border'
+  }
+}
 
 export default function DeliveriesPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const [expandedDelivery, setExpandedDelivery] = useState<number | null>(null)
-  const [showDeliverDialog, setShowDeliverDialog] = useState(false)
-  const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
+  const [requests, setRequests] = useState<WorkflowPrescriptionRequest[]>([])
+  const [selectedRequest, setSelectedRequest] = useState<WorkflowPrescriptionRequest | null>(null)
   const [receiverName, setReceiverName] = useState('')
 
   const isPharmacist = user?.role === 'pharmacist' || user?.role === 'administrator'
+  const isNurse = user?.role === 'nurse'
 
-  const mockDeliveries: Delivery[] = []
+  useEffect(() => {
+    const loadRequests = () => {
+      setRequests(getWorkflowPrescriptionRequests())
+    }
 
-  // Filter deliveries
-  const filteredDeliveries = useMemo(() => {
-    if (activeTab === 'all') return mockDeliveries
-    return mockDeliveries.filter(d => d.status === activeTab)
-  }, [activeTab])
+    loadRequests()
+    window.addEventListener('storage', loadRequests)
 
-  // Stats
-  const stats = useMemo(() => ({
-    preparing: mockDeliveries.filter(d => d.status === 'preparing').length,
-    inTransit: mockDeliveries.filter(d => d.status === 'in_transit').length,
-    delivered: mockDeliveries.filter(d => d.status === 'delivered').length,
-    total: mockDeliveries.length,
-  }), [])
+    return () => {
+      window.removeEventListener('storage', loadRequests)
+    }
+  }, [])
 
-  const tabs: { value: FilterTab; label: string; count?: number }[] = [
-    { value: 'all', label: 'All Deliveries' },
-    { value: 'preparing', label: 'Preparing', count: stats.preparing },
-    { value: 'in_transit', label: 'In Transit', count: stats.inTransit },
-    { value: 'delivered', label: 'Delivered', count: stats.delivered },
+  const deliveryRequests = useMemo(() => {
+    const workflowItems = requests.filter(
+      (request) =>
+        request.status === 'prescribed' ||
+        request.status === 'dispatched' ||
+        request.status === 'received_complete'
+    )
+
+    if (activeTab === 'all') return workflowItems
+    return workflowItems.filter((request) => request.status === activeTab)
+  }, [requests, activeTab])
+
+  const stats = useMemo(() => {
+    const workflowItems = requests.filter(
+      (request) =>
+        request.status === 'prescribed' ||
+        request.status === 'dispatched' ||
+        request.status === 'received_complete'
+    )
+
+    return {
+      total: workflowItems.length,
+      prescribed: workflowItems.filter((request) => request.status === 'prescribed').length,
+      dispatched: workflowItems.filter((request) => request.status === 'dispatched').length,
+      completed: workflowItems.filter((request) => request.status === 'received_complete').length,
+    }
+  }, [requests])
+
+  const tabs: { value: FilterTab; label: string; count: number }[] = [
+    { value: 'all', label: 'All Deliveries', count: stats.total },
+    { value: 'prescribed', label: 'Ready for Dispatch', count: stats.prescribed },
+    { value: 'dispatched', label: 'Dispatched', count: stats.dispatched },
+    { value: 'received_complete', label: 'Completed', count: stats.completed },
   ]
 
-  const handleMarkDelivered = () => {
-    // Handle mark as delivered
-    setShowDeliverDialog(false)
-    setSelectedDelivery(null)
-    setReceiverName('')
+  const refreshRequests = () => {
+    setRequests(getWorkflowPrescriptionRequests())
+    window.dispatchEvent(new Event('storage'))
   }
 
-  const getTimelineSteps = (delivery: Delivery) => {
-    const steps = [
-      { 
-        label: 'Request Approved', 
-        completed: true, 
-        time: delivery.created_at,
-        icon: CheckCircle2 
-      },
-      { 
-        label: 'Preparing', 
-        completed: delivery.status !== 'preparing',
-        time: delivery.dispatched_at || '',
-        icon: Package 
-      },
-      { 
-        label: 'In Transit', 
-        completed: delivery.status === 'in_transit' || delivery.status === 'delivered',
-        time: delivery.dispatched_at,
-        icon: Truck 
-      },
-      { 
-        label: 'Delivered', 
-        completed: delivery.status === 'delivered',
-        time: delivery.delivered_at,
-        icon: MapPin 
-      },
-    ]
-    return steps
+  const handleDispatch = (request: WorkflowPrescriptionRequest) => {
+    updateWorkflowPrescriptionRequest(request.id, (current) => ({
+      ...current,
+      status: 'dispatched',
+      dispatchedById: user?.id,
+      dispatchedByName: user?.fullName,
+      dispatchedAt: new Date().toISOString(),
+    }))
+    refreshRequests()
+  }
+
+  const openReceiveDialog = (request: WorkflowPrescriptionRequest) => {
+    setSelectedRequest(request)
+    setReceiverName(user?.fullName || '')
+  }
+
+  const handleConfirmReceived = () => {
+    if (!selectedRequest || !receiverName.trim()) return
+
+    updateWorkflowPrescriptionRequest(selectedRequest.id, (current) => ({
+      ...current,
+      status: 'received_complete',
+      receivedById: user?.id,
+      receivedByName: receiverName.trim(),
+      receivedAt: new Date().toISOString(),
+    }))
+
+    setSelectedRequest(null)
+    setReceiverName('')
+    refreshRequests()
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Delivery Tracking</h1>
-        <p className="text-muted-foreground">Track and manage drug deliveries</p>
+        <p className="text-muted-foreground">
+          Pharmacist dispatches prescribed medicine and nurse confirms complete receipt.
+        </p>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Deliveries"
           value={stats.total}
-          subtitle="All time"
+          subtitle="Prescription workflow"
           icon={Package}
           variant="primary"
         />
         <StatCard
-          title="Preparing"
-          value={stats.preparing}
-          subtitle="Being packaged"
+          title="Ready for Dispatch"
+          value={stats.prescribed}
+          subtitle="Doctor completed"
           icon={Package}
           variant="default"
         />
         <StatCard
-          title="In Transit"
-          value={stats.inTransit}
+          title="Dispatched"
+          value={stats.dispatched}
           subtitle="On the way"
           icon={Truck}
           variant="info"
         />
         <StatCard
-          title="Delivered"
-          value={stats.delivered}
-          subtitle="Completed"
+          title="Completed"
+          value={stats.completed}
+          subtitle="Received by nurse"
           icon={CheckCircle2}
           variant="success"
         />
       </div>
 
-      {/* Tabs and Content */}
       <Card className="rounded-2xl border-border/50 shadow-sm">
         <CardHeader className="border-b pb-0">
           <div className="flex items-center gap-1 overflow-x-auto pb-0">
@@ -160,9 +204,9 @@ export default function DeliveriesPage() {
                 )}
               >
                 {tab.label}
-                {tab.count !== undefined && tab.count > 0 && (
-                  <Badge 
-                    variant="secondary" 
+                {tab.count > 0 && (
+                  <Badge
+                    variant="secondary"
                     className={cn(
                       'rounded-full h-5 min-w-5 px-1.5',
                       activeTab === tab.value && 'bg-primary/10 text-primary'
@@ -178,225 +222,181 @@ export default function DeliveriesPage() {
             ))}
           </div>
         </CardHeader>
+
         <CardContent className="p-4">
-          {filteredDeliveries.length === 0 ? (
+          {deliveryRequests.length === 0 ? (
             <EmptyState
               variant="deliveries"
               title="No deliveries found"
-              description={`There are no ${activeTab === 'all' ? '' : activeTab.replace('_', ' ')} deliveries at the moment.`}
+              description="No prescription workflow deliveries are available right now."
             />
           ) : (
             <div className="space-y-4">
-              {filteredDeliveries.map((delivery) => {
-                const isExpanded = expandedDelivery === delivery.id
-                const timeline = getTimelineSteps(delivery)
-
-                return (
-                  <div
-                    key={delivery.id}
-                    className="rounded-2xl border border-border/50 bg-card overflow-hidden transition-all hover:border-border"
-                  >
-                    {/* Header */}
-                    <div 
-                      className="flex flex-col gap-4 p-4 cursor-pointer sm:flex-row sm:items-center sm:justify-between"
-                      onClick={() => setExpandedDelivery(isExpanded ? null : delivery.id)}
-                    >
-                      <div className="flex gap-4">
-                        <div className={cn(
-                          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-                          delivery.status === 'preparing' && 'bg-muted',
-                          delivery.status === 'in_transit' && 'bg-info/10',
-                          delivery.status === 'delivered' && 'bg-success/10'
-                        )}>
-                          <Truck className={cn(
-                            'h-6 w-6',
-                            delivery.status === 'preparing' && 'text-muted-foreground',
-                            delivery.status === 'in_transit' && 'text-info',
-                            delivery.status === 'delivered' && 'text-success'
-                          )} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold">{delivery.delivery_number}</h3>
-                            <StatusBadge status={delivery.status} size="sm" />
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            Request: {delivery.request_number}
-                          </p>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {delivery.delivery_location}
-                            </span>
-                          </div>
-                        </div>
+              {deliveryRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-border/50 bg-card p-4 transition-all hover:border-border"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <Truck className="h-6 w-6 text-primary" />
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {isPharmacist && delivery.status === 'in_transit' && (
-                          <Button
-                            size="sm"
-                            className="rounded-lg bg-success hover:bg-success/90"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedDelivery(delivery)
-                              setShowDeliverDialog(true)
-                            }}
-                          >
-                            <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                            Mark Delivered
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="rounded-lg">
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold">{request.requestNumber}</h3>
+                          <Badge className={cn('rounded-lg border', getStatusClasses(request.status))}>
+                            {getStatusLabel(request.status)}
+                          </Badge>
+                        </div>
+
+                        <div className="text-sm text-muted-foreground">
+                          Patient: {request.patientName}
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            Required by: {request.requiredByDate}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <UserRound className="h-3.5 w-3.5" />
+                            Doctor: {request.prescribedByName || '-'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Expanded Content */}
-                    {isExpanded && (
-                      <div className="border-t bg-muted/20 p-4 space-y-4">
-                        {/* Timeline */}
-                        <div>
-                          <h4 className="text-sm font-semibold mb-3">Delivery Timeline</h4>
-                          <div className="relative">
-                            {timeline.map((step, index) => {
-                              const Icon = step.icon
-                              const isLast = index === timeline.length - 1
-                              
-                              return (
-                                <div key={step.label} className="flex gap-4 pb-4 last:pb-0">
-                                  <div className="relative flex flex-col items-center">
-                                    <div className={cn(
-                                      'flex h-8 w-8 items-center justify-center rounded-full border-2',
-                                      step.completed
-                                        ? 'bg-success border-success text-white'
-                                        : 'bg-muted border-muted-foreground/30 text-muted-foreground'
-                                    )}>
-                                      <Icon className="h-4 w-4" />
-                                    </div>
-                                    {!isLast && (
-                                      <div className={cn(
-                                        'absolute top-8 left-1/2 -translate-x-1/2 w-0.5 h-full',
-                                        step.completed ? 'bg-success' : 'bg-muted-foreground/30'
-                                      )} />
-                                    )}
-                                  </div>
-                                  <div className="flex-1 pb-4">
-                                    <p className={cn(
-                                      'font-medium',
-                                      !step.completed && 'text-muted-foreground'
-                                    )}>
-                                      {step.label}
-                                    </p>
-                                    {step.time && step.completed && (
-                                      <p className="text-xs text-muted-foreground">
-                                        {new Date(step.time).toLocaleString()}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-2">
+                      {isPharmacist && request.status === 'prescribed' && (
+                        <Button
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={() => handleDispatch(request)}
+                        >
+                          Mark Dispatched
+                        </Button>
+                      )}
 
-                        {/* Items */}
-                        <div>
-                          <h4 className="text-sm font-semibold mb-3">Items ({delivery.items.length})</h4>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {delivery.items.map((item) => (
-                              <div 
-                                key={item.id}
-                                className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                                  <Package className="h-4 w-4 text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{item.drug_name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Batch: {item.batch_number}
-                                  </p>
-                                </div>
-                                <Badge variant="secondary" className="rounded-lg">
-                                  x{item.quantity}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                      {isNurse && request.status === 'dispatched' && (
+                        <Button
+                          size="sm"
+                          className="rounded-lg bg-success hover:bg-success/90"
+                          onClick={() => openReceiveDialog(request)}
+                        >
+                          <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                          Confirm Receipt
+                        </Button>
+                      )}
+                    </div>
+                  </div>
 
-                        {/* Delivery Details */}
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <div className="rounded-xl bg-card border border-border/50 p-3">
-                            <p className="text-xs text-muted-foreground">Dispatched By</p>
-                            <p className="font-medium">{delivery.dispatched_by_name || '-'}</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl bg-card border border-border/50 p-3">
+                      <p className="text-xs text-muted-foreground">Chief Complaint</p>
+                      <p className="font-medium">{request.patientSnapshot.chiefComplaint || '-'}</p>
+                    </div>
+
+                    <div className="rounded-xl bg-card border border-border/50 p-3">
+                      <p className="text-xs text-muted-foreground">Diagnosis</p>
+                      <p className="font-medium">{request.diagnosis || '-'}</p>
+                    </div>
+
+                    <div className="rounded-xl bg-card border border-border/50 p-3">
+                      <p className="text-xs text-muted-foreground">Dispatched By</p>
+                      <p className="font-medium">{request.dispatchedByName || '-'}</p>
+                    </div>
+
+                    <div className="rounded-xl bg-card border border-border/50 p-3">
+                      <p className="text-xs text-muted-foreground">Received By</p>
+                      <p className="font-medium">{request.receivedByName || '-'}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold mb-3">
+                      Medications ({request.items.length})
+                    </h4>
+
+                    {request.items.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                        No medication items added yet.
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {request.items.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3"
+                          >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                              <Package className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{item.medicationName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.dosage} · {item.frequency} · {item.duration || '-'}
+                              </p>
+                            </div>
+                            <Badge variant="secondary" className="rounded-lg">
+                              x{item.quantity}
+                            </Badge>
                           </div>
-                          {delivery.delivered_by_name && (
-                            <div className="rounded-xl bg-card border border-border/50 p-3">
-                              <p className="text-xs text-muted-foreground">Delivered By</p>
-                              <p className="font-medium">{delivery.delivered_by_name}</p>
-                            </div>
-                          )}
-                          {delivery.received_by_name && (
-                            <div className="rounded-xl bg-card border border-border/50 p-3">
-                              <p className="text-xs text-muted-foreground">Received By</p>
-                              <p className="font-medium">{delivery.received_by_name}</p>
-                            </div>
-                          )}
-                        </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Mark Delivered Dialog */}
-      <Dialog open={showDeliverDialog} onOpenChange={setShowDeliverDialog}>
+      <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Mark as Delivered</DialogTitle>
+            <DialogTitle>Confirm Complete Receipt</DialogTitle>
             <DialogDescription>
-              Confirm delivery of {selectedDelivery?.delivery_number}
+              Confirm that all medicines were received completely for {selectedRequest?.patientName}.
             </DialogDescription>
           </DialogHeader>
+
           <div className="py-4 space-y-4">
             <div className="rounded-xl bg-success/10 border border-success/20 p-4 text-center">
               <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
               <p className="mt-2 font-medium">
-                {selectedDelivery?.items.length} items will be marked as delivered
+                {selectedRequest?.items.length || 0} items will be marked as received complete
               </p>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Received By *</label>
               <Input
-                placeholder="Enter receiver's name"
+                placeholder="Enter nurse receiver name"
                 value={receiverName}
                 onChange={(e) => setReceiverName(e.target.value)}
                 className="rounded-xl h-11"
               />
             </div>
           </div>
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="rounded-xl" onClick={() => setShowDeliverDialog(false)}>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setSelectedRequest(null)}
+            >
               Cancel
             </Button>
-            <Button 
-              className="rounded-xl bg-success hover:bg-success/90" 
-              onClick={handleMarkDelivered}
+            <Button
+              className="rounded-xl bg-success hover:bg-success/90"
+              onClick={handleConfirmReceived}
               disabled={!receiverName.trim()}
             >
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Confirm Delivery
+              Confirm Receipt
             </Button>
           </DialogFooter>
         </DialogContent>
