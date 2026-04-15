@@ -82,7 +82,7 @@ The system follows a layered architecture:
 ![Pharmacist Inventory](picture/Pharmacist-inventory.png)
 ![Pharmacist Add Drug](picture/Pharmacist-add-drug.png)
 ![Pharmacist Drug Request](picture/Pharmacist-drug-request.png)
-![Pharmacist Expire Alert](picture/Pharmacist-report-expiry.png)
+![Pharmacist Expire Alert](picture/Pharmacist-expire-alrert.png)
 
 #### Pharmacist Reports
 ![Report Inventory](picture/Pharmacist-report-inventory.png)
