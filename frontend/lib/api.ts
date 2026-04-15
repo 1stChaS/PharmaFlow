@@ -43,6 +43,11 @@ async function apiRequest<T>(endpoint: string, options: ApiOptions = {}): Promis
   return (payload.data ?? payload) as T
 }
 
+export const inventoryApi = {
+  getStockStatus: () => apiRequest('/inventory/stock-status'),
+}
+
+
 export interface User {
   id: number
   username: string
@@ -167,8 +172,19 @@ export const authApi = {
 }
 
 export const usersApi = {
-  getAll: () => apiRequest<User[]>('/users'),
-  create: (payload: { username: string; email: string; password: string; fullName: string; role: string; department?: string }) =>
+  getAll: (params?: { role?: string }) => {
+    const query = params?.role ? `?role=${encodeURIComponent(params.role)}` : ''
+    return apiRequest<User[]>(`/users${query}`)
+  },
+
+  create: (payload: {
+    username: string
+    email: string
+    password: string
+    fullName: string
+    role: string
+    department?: string
+  }) =>
     apiRequest<{ id: number }>('/users', { method: 'POST', body: payload }),
 }
 

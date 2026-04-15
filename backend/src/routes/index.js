@@ -7,6 +7,7 @@ import prescriptionRoutes from './prescription.routes.js'
 import deliveryAssignmentRoutes from './delivery-assignment.routes.js'
 import reportRoutes from './report.routes.js'
 import requestRoutes from './request.routes.js'
+import inventoryRoutes from './inventory.routes.js';
 
 const router = Router()
 
@@ -22,5 +23,6 @@ router.use('/prescriptions', prescriptionRoutes)
 router.use('/delivery-assignments', deliveryAssignmentRoutes)
 router.use('/reports', reportRoutes)
 router.use('/requests', requestRoutes)
+router.use('/inventory', inventoryRoutes);
 
 export default router
