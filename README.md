@@ -78,15 +78,47 @@ The system follows a layered architecture:
 - Manage inventory  
 - Approve/reject drug requests  
 - Track deliveries 
+![Pharmacist Dashboard](picture/Pharmacist-dashboard.png)
+![Pharmacist Inventory](picture/Pharmacist-inventory.png)
+![Pharmacist Add Drug](picture/Pharmacist-add-drug.png)
+![Pharmacist Drug Request](picture/Pharmacist-drug-request.png)
+![Pharmacist Expire Alert](picture/Pharmacist-expire-alert.png)
 
+#### Pharmacist Reports
+![Report Inventory](picture/Pharmacist-report-inventory.png)
+![Report Request](picture/Pharmacist-report-request.png)
+![Report Usage](picture/Pharmacist-report-usage.png)
+![Report Financial](picture/Pharmacist-report-financial.png)
+![Report Expiry](picture/Pharmacist-report-expiry.png)
+
+---
 
 ### Doctors
 - Prescribe drugs  
 - Submit drug requests  
 
+#### Doctor Panel
+![Doctor Dashboard](picture/Doctor-dashboard.png)
+![Doctor Prescription](picture/Doctor-prescription.png)
+![Doctor Prescription Form](picture/Doctor-prescription-form.png)
+![Doctor Prescription Form Continued](picture/Doctor-prescription-form-cont.png)
+![Doctor My Request](picture/Doctor-myrequest.png)
+![Doctor Delivery](picture/Doctor-delivery.png)
+
+---
+
 ### Nurses
 - Input patient information  
 - Confirm medication status  
+
+#### Nurse Panel
+![Nurse Dashboard](picture/Nurse-Dashboard.png)
+![Nurse Input Patient](picture/Nurse-input-patient.png)
+![Nurse Input Patient Form](picture/Nurse-input-patient-form.png)
+![Nurse My Request](picture/Nurse-myrequest.png)
+![Nurse Delivery](picture/Nurse-Delivery.png)
+
+---
 
 ### Administrators
 - Manage users  
